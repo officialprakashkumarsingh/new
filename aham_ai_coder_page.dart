@@ -46,8 +46,15 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
     
+    // Listen to multiple GitHub service state changes
     _gitHubService.recentEdits.addListener(_onEditsChanged);
+    _gitHubService.isAIRunning.addListener(_onAIStatusChanged);
+    _gitHubService.aiStatus.addListener(_onAIStatusTextChanged);
+    _gitHubService.lastError.addListener(_onErrorChanged);
+    
     _recentEdits = _gitHubService.recentEdits.value;
+    _isProcessing = _gitHubService.isAIRunning.value;
+    _status = _gitHubService.aiStatus.value;
   }
 
   @override
@@ -57,13 +64,51 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
     _scrollController.dispose();
     _promptController.dispose();
     _gitHubService.recentEdits.removeListener(_onEditsChanged);
+    _gitHubService.isAIRunning.removeListener(_onAIStatusChanged);
+    _gitHubService.aiStatus.removeListener(_onAIStatusTextChanged);
+    _gitHubService.lastError.removeListener(_onErrorChanged);
     super.dispose();
   }
 
   void _onEditsChanged() {
-    setState(() {
-      _recentEdits = _gitHubService.recentEdits.value;
-    });
+    if (mounted) {
+      setState(() {
+        _recentEdits = _gitHubService.recentEdits.value;
+      });
+    }
+  }
+
+  void _onAIStatusChanged() {
+    if (mounted) {
+      setState(() {
+        _isProcessing = _gitHubService.isAIRunning.value;
+        if (_isProcessing) {
+          _pulseController.repeat(reverse: true);
+        } else {
+          _pulseController.stop();
+        }
+      });
+    }
+  }
+
+  void _onAIStatusTextChanged() {
+    if (mounted) {
+      setState(() {
+        _status = _gitHubService.aiStatus.value;
+        if (_status.isNotEmpty) {
+          _addToActivityLog('⚡ $_status');
+        }
+      });
+    }
+  }
+
+  void _onErrorChanged() {
+    if (mounted) {
+      final error = _gitHubService.lastError.value;
+      if (error != null && error.isNotEmpty) {
+        _addToActivityLog('❌ Error: $error');
+      }
+    }
   }
 
   void _addToActivityLog(String activity) {
@@ -828,31 +873,46 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
     _addToActivityLog('📋 Prompt: ${_promptController.text}');
     _addToActivityLog('🤖 Model: ${widget.selectedModel}');
 
-    final success = await _gitHubService.updateRepositoryWithAI(
+    // Start AI processing in background (continues even if UI is closed)
+    _gitHubService.updateRepositoryWithAI(
       prompt: _promptController.text,
       aiModel: widget.selectedModel,
       onStatus: (s) {
-        setState(() => _status = s);
-        if (s.isNotEmpty) {
-          _addToActivityLog('⚡ $s');
+        if (mounted) {
+          setState(() => _status = s);
+          if (s.isNotEmpty) {
+            _addToActivityLog('⚡ $s');
+          }
         }
       },
-    );
+    ).then((success) {
+      if (mounted) {
+        _pulseController.stop();
+        setState(() {
+          _isProcessing = false;
+          _status = '';
+        });
 
-    _pulseController.stop();
-    setState(() {
-      _isProcessing = false;
-      _status = '';
+        final err = _gitHubService.lastError.value;
+        if (success) {
+          _addToActivityLog('✅ AI successfully applied changes');
+          _showSnackBar('AI suggestions applied to repository', isError: false);
+        } else {
+          _addToActivityLog('❌ AI operation failed: ${err ?? 'No changes generated'}');
+          _showSnackBar(err ?? 'AI did not generate changes', isError: true);
+        }
+      }
+    }).catchError((error) {
+      if (mounted) {
+        _pulseController.stop();
+        setState(() {
+          _isProcessing = false;
+          _status = '';
+        });
+        _addToActivityLog('❌ Unexpected error: $error');
+        _showSnackBar('Unexpected error occurred', isError: true);
+      }
     });
-
-    final err = _gitHubService.lastError.value;
-    if (success) {
-      _addToActivityLog('✅ AI successfully applied changes');
-      _showSnackBar('AI suggestions applied to repository', isError: false);
-    } else {
-      _addToActivityLog('❌ AI operation failed: ${err ?? 'No changes generated'}');
-      _showSnackBar(err ?? 'AI did not generate changes', isError: true);
-    }
   }
 
   void _showSnackBar(String message, {required bool isError}) {
@@ -1106,62 +1166,126 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
         children: [
           Row(
             children: [
-              Container(
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: _isProcessing ? Colors.blue.shade50 : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.history,
-                  color: Colors.grey.shade600,
-                  size: 20,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _isProcessing
+                      ? SizedBox(
+                          key: const ValueKey('loading'),
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.blue.shade600,
+                          ),
+                        )
+                      : Icon(
+                          key: const ValueKey('history'),
+                          Icons.terminal,
+                          color: Colors.grey.shade600,
+                          size: 20,
+                        ),
                 ),
               ),
               const SizedBox(width: 12),
-              Text(
-                'Activity Log',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Activity Log',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                    if (_isProcessing && _status.isNotEmpty)
+                      Text(
+                        _status,
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: Colors.blue.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              if (_activityLog.isNotEmpty)
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _activityLog.clear();
-                    });
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade600,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  ),
-                  child: Text(
-                    'Clear',
-                    style: GoogleFonts.inter(fontSize: 12),
-                  ),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_activityLog.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${_activityLog.length}',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ),
+                  if (_activityLog.isNotEmpty) const SizedBox(width: 8),
+                  if (_activityLog.isNotEmpty)
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _activityLog.clear();
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.clear,
+                          size: 16,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Container(
-            height: 120,
+            height: 140,
             decoration: BoxDecoration(
-              color: Colors.grey.shade50,
+              color: const Color(0xFF1E1E1E), // Dark terminal-like background
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Colors.grey.shade300),
             ),
             child: _activityLog.isEmpty
                 ? Center(
-                    child: Text(
-                      'No activity yet',
-                      style: GoogleFonts.inter(
-                        color: Colors.grey.shade500,
-                        fontSize: 13,
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.terminal,
+                          color: Colors.grey.shade600,
+                          size: 24,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Waiting for AI activity...',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
@@ -1169,14 +1293,50 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
                     padding: const EdgeInsets.all(12),
                     itemCount: _activityLog.length,
                     itemBuilder: (context, index) {
+                      final log = _activityLog[index];
+                      final isError = log.contains('❌');
+                      final isSuccess = log.contains('✅');
+                      final isProcessing = log.contains('⚡');
+                      
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          _activityLog[index],
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            color: Colors.grey.shade700,
-                          ),
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Timestamp indicator
+                            Container(
+                              width: 4,
+                              height: 4,
+                              margin: const EdgeInsets.only(top: 6),
+                              decoration: BoxDecoration(
+                                color: isError 
+                                    ? Colors.red.shade400
+                                    : isSuccess 
+                                        ? Colors.green.shade400
+                                        : isProcessing
+                                            ? Colors.blue.shade400
+                                            : Colors.grey.shade400,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                log,
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  color: isError 
+                                      ? Colors.red.shade300
+                                      : isSuccess 
+                                          ? Colors.green.shade300
+                                          : isProcessing
+                                              ? Colors.blue.shade300
+                                              : Colors.grey.shade300,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       );
                     },
