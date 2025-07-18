@@ -413,42 +413,190 @@ class GitHubService {
     return files;
   }
 
-  // Apply AI modifications across all repository files
+  // Apply AI modifications across all repository files with enhanced logic
   Future<bool> updateRepositoryWithAI({
     required String prompt,
     required String aiModel,
     void Function(String status)? onStatus,
+    String processingMode = 'smart',
+    double confidenceThreshold = 0.7,
+    List<String> fileTypes = const ['dart'],
   }) async {
     final repo = selectedRepository.value;
     if (repo == null) return false;
 
     try {
-      onStatus?.call('Searching for relevant files...');
-      var files = await _searchFilesForPrompt(prompt);
-      if (files.isEmpty) {
-        files = await _collectAllFiles();
+      onStatus?.call('🔍 Analyzing repository structure...');
+      
+      // Get relevant files based on processing mode
+      List<GitHubFile> files;
+      switch (processingMode) {
+        case 'focused':
+          files = await _searchFilesForPrompt(prompt);
+          if (files.isEmpty) {
+            onStatus?.call('⚠️ No relevant files found for focused search');
+            return false;
+          }
+          break;
+        case 'comprehensive':
+          files = await _collectAllFiles();
+          break;
+        case 'smart':
+        default:
+          files = await _smartFileSelection(prompt, fileTypes);
+          break;
       }
-      onStatus?.call('Processing ${files.length} files');
+
+      // Filter files by type if specified
+      if (fileTypes.isNotEmpty) {
+        files = files.where((file) {
+          final extension = file.path.split('.').last.toLowerCase();
+          return fileTypes.contains(extension);
+        }).toList();
+      }
+
+      if (files.isEmpty) {
+        onStatus?.call('❌ No suitable files found');
+        return false;
+      }
+
+      onStatus?.call('📊 Processing ${files.length} files with $processingMode mode');
+      
       bool anyChanges = false;
+      int processedCount = 0;
+      int changedCount = 0;
+      
       for (var i = 0; i < files.length; i++) {
         final file = files[i];
-        onStatus?.call('Processing ${file.path} (${i + 1}/${files.length})');
+        final progress = ((i + 1) / files.length * 100).round();
+        
+        onStatus?.call('🔄 Processing ${file.path.split('/').last} ($progress%)');
+        
         final content = await getFileContent(file.path);
         if (content == null) continue;
+        
+        processedCount++;
+        
+        // Skip very large files to avoid timeout
+        if (content.length > 50000) {
+          onStatus?.call('⏭️ Skipping ${file.path} (file too large)');
+          continue;
+        }
+        
+        // Enhanced file analysis for better AI targeting
+        final relevanceScore = _calculateFileRelevance(content, prompt);
+        if (relevanceScore < confidenceThreshold) {
+          continue;
+        }
+        
         final changed = await updateFileWithAI(
           filePath: file.path,
           currentContent: content,
           prompt: prompt,
           aiModel: aiModel,
         );
-        if (changed) anyChanges = true;
+        
+        if (changed) {
+          anyChanges = true;
+          changedCount++;
+        }
       }
-      onStatus?.call('');
+      
+      onStatus?.call('✅ Completed: $changedCount changes in $processedCount files');
+      
       return anyChanges;
     } catch (e) {
-      onStatus?.call('Failed: $e');
+      onStatus?.call('❌ Failed: $e');
       debugPrint('Error updating repository with AI: $e');
       return false;
     }
+  }
+
+  // Smart file selection based on prompt analysis
+  Future<List<GitHubFile>> _smartFileSelection(String prompt, List<String> fileTypes) async {
+    final keywords = _extractKeywords(prompt);
+    final allFiles = await _collectAllFiles();
+    
+    // Score files based on relevance
+    final scoredFiles = <MapEntry<GitHubFile, double>>[];
+    
+    for (final file in allFiles) {
+      double score = 0.0;
+      
+      // File extension score
+      final extension = file.path.split('.').last.toLowerCase();
+      if (fileTypes.contains(extension)) score += 0.3;
+      
+      // Filename keyword matching
+      final fileName = file.path.toLowerCase();
+      for (final keyword in keywords) {
+        if (fileName.contains(keyword)) score += 0.2;
+      }
+      
+      // Content-based scoring (for high-priority files)
+      if (score > 0.2) {
+        final content = await getFileContent(file.path);
+        if (content != null) {
+          score += _calculateFileRelevance(content, prompt) * 0.5;
+        }
+      }
+      
+      if (score > 0.1) {
+        scoredFiles.add(MapEntry(file, score));
+      }
+    }
+    
+    // Sort by score and return top files
+    scoredFiles.sort((a, b) => b.value.compareTo(a.value));
+    return scoredFiles.take(20).map((e) => e.key).toList();
+  }
+
+  // Calculate file relevance score
+  double _calculateFileRelevance(String content, String prompt) {
+    final keywords = _extractKeywords(prompt);
+    final contentLower = content.toLowerCase();
+    final promptLower = prompt.toLowerCase();
+    
+    double score = 0.0;
+    int keywordMatches = 0;
+    
+    // Direct keyword matches
+    for (final keyword in keywords) {
+      if (contentLower.contains(keyword)) {
+        keywordMatches++;
+        score += 0.1;
+      }
+    }
+    
+    // Context analysis
+    if (promptLower.contains('error') && contentLower.contains('try')) score += 0.2;
+    if (promptLower.contains('ui') && contentLower.contains('widget')) score += 0.2;
+    if (promptLower.contains('api') && contentLower.contains('http')) score += 0.2;
+    if (promptLower.contains('database') && contentLower.contains('query')) score += 0.2;
+    
+    // Normalize score
+    return (score + (keywordMatches / keywords.length * 0.3)).clamp(0.0, 1.0);
+  }
+
+  // Extract meaningful keywords from prompt
+  List<String> _extractKeywords(String prompt) {
+    final words = prompt
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^\w\s]'), ' ')
+        .split(RegExp(r'\s+'))
+        .where((word) => word.length > 2)
+        .toSet()
+        .toList();
+    
+    // Remove common stop words
+    const stopWords = {
+      'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had',
+      'her', 'was', 'one', 'our', 'out', 'day', 'get', 'has', 'him', 'his',
+      'how', 'man', 'new', 'now', 'old', 'see', 'two', 'way', 'who', 'boy',
+      'did', 'its', 'let', 'put', 'say', 'she', 'too', 'use', 'add', 'make',
+      'implement', 'create', 'update', 'modify', 'change', 'improve'
+    };
+    
+    return words.where((word) => !stopWords.contains(word)).toList();
   }
 }
