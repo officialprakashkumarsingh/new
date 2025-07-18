@@ -9,6 +9,7 @@ import 'models.dart';
 import 'saved_page.dart';
 import 'auth_service.dart';
 import 'characters_page.dart';
+import 'github_page.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -174,7 +175,7 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       ChatPage(key: _chatPageKey, onBookmark: _bookmarkMessage, selectedModel: _selectedModel),
-      const PlaceholderPage(title: 'Discover'),
+      GitHubPage(selectedModel: _selectedModel),
       CharactersPage(selectedModel: _selectedModel),
       SavedPage(
         bookmarkedMessages: _bookmarkedMessages,
@@ -245,7 +246,7 @@ class _MainShellState extends State<MainShell> {
           elevation: 0,
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.home_filled, Icons.home_outlined, 0), label: 'Home'),
-            BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.explore, Icons.explore_outlined, 1), label: 'Discover'),
+            BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.code, Icons.code, 1), label: 'GitHub'),
             BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.theater_comedy, Icons.theater_comedy_outlined, 2), label: 'Characters'),
             BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.bookmark, Icons.bookmark_border, 3), label: 'Saved'),
           ],
