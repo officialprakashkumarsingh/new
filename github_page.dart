@@ -77,8 +77,8 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
                   controller: _tabController,
                   children: [
                     _buildRepositoriesTab(),
+                    _buildAhamAICoderTab(),
                     _buildFileBrowserTab(),
-                    _buildCommitsTab(),
                     _buildPullRequestsTab(),
                   ],
                 ),
@@ -261,8 +261,8 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
         indicatorColor: Colors.black87,
         tabs: const [
           Tab(text: 'Repositories'),
+          Tab(text: 'AhamAI Coder'),
           Tab(text: 'Files'),
-          Tab(text: 'Commits'),
           Tab(text: 'Pull Requests'),
         ],
       ),
@@ -284,8 +284,6 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              _buildAhamAIBanner(),
-              const SizedBox(height: 16),
               for (final repo in repositories) _buildRepositoryCard(repo),
             ],
           ),
@@ -360,43 +358,11 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAhamAIBanner() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.auto_awesome, color: Colors.black87),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'AhamAI Coder',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.black87,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AhamAICoderPage(
-                    selectedModel: widget.selectedModel,
-                  ),
-                ),
-              );
-            },
-            child: const Text('Open'),
-          ),
-        ],
-      ),
+
+
+  Widget _buildAhamAICoderTab() {
+    return AhamAICoderPage(
+      selectedModel: widget.selectedModel,
     );
   }
 

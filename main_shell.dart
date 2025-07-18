@@ -246,7 +246,10 @@ class _MainShellState extends State<MainShell> {
           elevation: 0,
           items: <BottomNavigationBarItem>[
             BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.home_filled, Icons.home_outlined, 0), label: 'Home'),
-            BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.code, Icons.code, 1), label: 'GitHub'),
+            BottomNavigationBarItem(
+              icon: _buildAnimatedIcon(Icons.developer_mode, Icons.developer_mode_outlined, 1), 
+              label: 'GitHub'
+            ),
             BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.theater_comedy, Icons.theater_comedy_outlined, 2), label: 'Characters'),
             BottomNavigationBarItem(icon: _buildAnimatedIcon(Icons.bookmark, Icons.bookmark_border, 3), label: 'Saved'),
           ],
