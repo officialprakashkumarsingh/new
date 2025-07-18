@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'github_service.dart';
 import 'github_models.dart';
 import 'code_editor_page.dart';
@@ -23,7 +24,7 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this); // Changed from 4 to 3
   }
 
   @override
@@ -77,7 +78,6 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
                   controller: _tabController,
                   children: [
                     _buildRepositoriesTab(),
-                    _buildAhamAICoderTab(),
                     _buildFileBrowserTab(),
                     _buildPullRequestsTab(),
                   ],
@@ -261,7 +261,6 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
         indicatorColor: Colors.black87,
         tabs: const [
           Tab(text: 'Repositories'),
-          Tab(text: 'AhamAI Coder'),
           Tab(text: 'Files'),
           Tab(text: 'Pull Requests'),
         ],
@@ -284,11 +283,199 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              _buildAhamAIBanner(),
+              const SizedBox(height: 16),
               for (final repo in repositories) _buildRepositoryCard(repo),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildAhamAIBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.shade100,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: InkWell(
+        onTap: _showAhamAICoderBottomSheet,
+        borderRadius: BorderRadius.circular(8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.psychology_outlined,
+                color: Colors.blue.shade600,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Ask AhamAI Coder',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'AI-powered code analysis and suggestions',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: Colors.grey.shade400,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAhamAICoderBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                  border: Border(
+                    bottom: BorderSide(color: Colors.grey.shade200),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Text(
+                          'AhamAI',
+                          style: GoogleFonts.pacifico(
+                            fontSize: 20,
+                            color: Colors.grey.shade800,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Coder',
+                          style: GoogleFonts.inter(
+                            fontSize: 20,
+                            color: Colors.blue.shade600,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        ValueListenableBuilder<GitHubRepository?>(
+                          valueListenable: _gitHubService.selectedRepository,
+                          builder: (context, repo, child) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: repo != null ? Colors.blue.shade50 : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: repo != null ? Colors.blue.shade200 : Colors.grey.shade300,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    repo != null ? Icons.folder_outlined : Icons.folder_off_outlined,
+                                    size: 16,
+                                    color: repo != null ? Colors.blue.shade700 : Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    repo?.name ?? 'No Repository',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: repo != null ? Colors.blue.shade700 : Colors.grey.shade500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: AhamAICoderBottomSheetContent(
+                  selectedModel: widget.selectedModel,
+                  scrollController: scrollController,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -352,19 +539,13 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Selected ${repo.name}')),
           );
-          _tabController.animateTo(1); // Switch to Files tab
+          // Repository selected, ready for AI analysis
         },
       ),
     );
   }
 
 
-
-  Widget _buildAhamAICoderTab() {
-    return AhamAICoderPage(
-      selectedModel: widget.selectedModel,
-    );
-  }
 
   Widget _buildFileBrowserTab() {
     return ValueListenableBuilder<GitHubRepository?>(
