@@ -263,7 +263,7 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 44,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isProcessing ? Colors.grey.shade100 : Colors.blue.shade600,
@@ -276,18 +276,18 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
               onPressed: _isProcessing ? null : _runAI,
               icon: _isProcessing
                   ? SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.grey.shade600,
                       ),
                     )
-                  : const Icon(Icons.rocket_launch_outlined, size: 18),
+                  : const Icon(Icons.play_arrow_rounded, size: 16),
               label: Text(
-                _isProcessing ? 'Running AI Analysis...' : 'Run AI on Repository',
+                _isProcessing ? 'Processing...' : 'Start the task',
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -303,15 +303,16 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
       animation: _pulseAnimation,
       builder: (context, child) {
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade100),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.shade100,
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Colors.grey.shade50,
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
             ],
           ),
@@ -323,55 +324,60 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
                   Transform.scale(
                     scale: _isProcessing ? _pulseAnimation.value : 1.0,
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
-                        color: _isProcessing ? Colors.blue.shade50 : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        color: _isProcessing ? Colors.green.shade50 : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _isProcessing ? Colors.green.shade200 : Colors.grey.shade200,
+                          width: 1,
+                        ),
                       ),
                       child: Icon(
-                        _isProcessing ? Icons.psychology : Icons.monitor_heart_outlined,
-                        color: _isProcessing ? Colors.blue.shade600 : Colors.grey.shade600,
-                        size: 20,
+                        _isProcessing ? Icons.auto_awesome : Icons.psychology_outlined,
+                        color: _isProcessing ? Colors.green.shade600 : Colors.grey.shade500,
+                        size: 14,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Text(
-                    'AI Status',
+                    'Status',
                     style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade700,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               if (_status.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade100),
+                    border: Border.all(color: Colors.green.shade100),
                   ),
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 16,
-                        height: 16,
+                        width: 14,
+                        height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.blue.shade600,
+                          color: Colors.green.shade600,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _status,
                           style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: Colors.blue.shade800,
+                            fontSize: 12,
+                            color: Colors.green.shade800,
                           ),
                         ),
                       ),
@@ -380,7 +386,7 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
                 )
               else
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -389,14 +395,14 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
                     children: [
                       Icon(
                         Icons.pending_outlined,
-                        size: 16,
-                        color: Colors.grey.shade600,
+                        size: 14,
+                        color: Colors.grey.shade500,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Text(
                         'Ready to process your code',
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -412,15 +418,16 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
 
   Widget _buildActivityLog() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.grey.shade50,
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -430,43 +437,28 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade200, width: 1),
                 ),
                 child: Icon(
-                  Icons.history,
-                  color: Colors.grey.shade600,
-                  size: 20,
+                  Icons.list_alt_outlined,
+                  color: Colors.grey.shade500,
+                  size: 14,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Text(
                 'Activity Log',
                 style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade700,
                 ),
               ),
-              const Spacer(),
-              if (_activityLog.isNotEmpty)
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      _activityLog.clear();
-                    });
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade600,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  ),
-                  child: Text(
-                    'Clear',
-                    style: GoogleFonts.inter(fontSize: 12),
-                  ),
-                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -475,30 +467,48 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
             decoration: BoxDecoration(
               color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: Colors.grey.shade100),
             ),
             child: _activityLog.isEmpty
                 ? Center(
-                    child: Text(
-                      'No activity yet',
-                      style: GoogleFonts.inter(
-                        color: Colors.grey.shade500,
-                        fontSize: 13,
-                      ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.timeline_outlined,
+                          color: Colors.grey.shade400,
+                          size: 32,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No activity yet',
+                          style: GoogleFonts.inter(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   )
                 : ListView.builder(
                     controller: _scrollController,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     itemCount: _activityLog.length,
                     itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade100),
+                        ),
                         child: Text(
                           _activityLog[index],
-                          style: GoogleFonts.jetBrainsMono(
+                          style: GoogleFonts.inter(
                             fontSize: 11,
                             color: Colors.grey.shade700,
+                            height: 1.3,
                           ),
                         ),
                       );
@@ -1000,7 +1010,7 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
-            height: 48,
+            height: 44,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isProcessing ? Colors.grey.shade100 : Colors.blue.shade600,
@@ -1013,18 +1023,18 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
               onPressed: _isProcessing ? null : _runAI,
               icon: _isProcessing
                   ? SizedBox(
-                      width: 16,
-                      height: 16,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         color: Colors.grey.shade600,
                       ),
                     )
-                  : const Icon(Icons.rocket_launch_outlined, size: 18),
+                  : const Icon(Icons.play_arrow_rounded, size: 16),
               label: Text(
-                _isProcessing ? 'Running AI Analysis...' : 'Run AI on Repository',
+                _isProcessing ? 'Processing...' : 'Start the task',
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1040,15 +1050,16 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
       animation: _pulseAnimation,
       builder: (context, child) {
         return Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade100),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.shade100,
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+                color: Colors.grey.shade50,
+                blurRadius: 4,
+                offset: const Offset(0, 1),
               ),
             ],
           ),
@@ -1060,55 +1071,60 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
                   Transform.scale(
                     scale: _isProcessing ? _pulseAnimation.value : 1.0,
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
-                        color: _isProcessing ? Colors.blue.shade50 : Colors.grey.shade50,
-                        borderRadius: BorderRadius.circular(8),
+                        color: _isProcessing ? Colors.green.shade50 : Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _isProcessing ? Colors.green.shade200 : Colors.grey.shade200,
+                          width: 1,
+                        ),
                       ),
                       child: Icon(
-                        _isProcessing ? Icons.psychology : Icons.monitor_heart_outlined,
-                        color: _isProcessing ? Colors.blue.shade600 : Colors.grey.shade600,
-                        size: 20,
+                        _isProcessing ? Icons.auto_awesome : Icons.psychology_outlined,
+                        color: _isProcessing ? Colors.green.shade600 : Colors.grey.shade500,
+                        size: 14,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Text(
-                    'AI Status',
+                    'Status',
                     style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.grey.shade800,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade700,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               if (_status.isNotEmpty)
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade100),
+                    border: Border.all(color: Colors.green.shade100),
                   ),
                   child: Row(
                     children: [
                       SizedBox(
-                        width: 16,
-                        height: 16,
+                        width: 14,
+                        height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.blue.shade600,
+                          color: Colors.green.shade600,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _status,
                           style: GoogleFonts.inter(
-                            fontSize: 13,
-                            color: Colors.blue.shade800,
+                            fontSize: 12,
+                            color: Colors.green.shade800,
                           ),
                         ),
                       ),
@@ -1117,7 +1133,7 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
                 )
               else
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(8),
@@ -1126,14 +1142,14 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
                     children: [
                       Icon(
                         Icons.pending_outlined,
-                        size: 16,
-                        color: Colors.grey.shade600,
+                        size: 14,
+                        color: Colors.grey.shade500,
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Text(
                         'Ready to process your code',
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
                       ),
@@ -1149,15 +1165,16 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
 
   Widget _buildActivityLog() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.shade100,
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.grey.shade50,
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -1166,123 +1183,55 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
         children: [
           Row(
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                padding: const EdgeInsets.all(8),
+              Container(
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
-                  color: _isProcessing ? Colors.blue.shade50 : Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade200, width: 1),
                 ),
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: _isProcessing
-                      ? SizedBox(
-                          key: const ValueKey('loading'),
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.blue.shade600,
-                          ),
-                        )
-                      : Icon(
-                          key: const ValueKey('history'),
-                          Icons.terminal,
-                          color: Colors.grey.shade600,
-                          size: 20,
-                        ),
+                child: Icon(
+                  Icons.list_alt_outlined,
+                  color: Colors.grey.shade500,
+                  size: 14,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Activity Log',
-                      style: GoogleFonts.inter(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                    if (_isProcessing && _status.isNotEmpty)
-                      Text(
-                        _status,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: Colors.blue.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                  ],
+              const SizedBox(width: 8),
+              Text(
+                'Activity Log',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey.shade700,
                 ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_activityLog.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${_activityLog.length}',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue.shade700,
-                        ),
-                      ),
-                    ),
-                  if (_activityLog.isNotEmpty) const SizedBox(width: 8),
-                  if (_activityLog.isNotEmpty)
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _activityLog.clear();
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          Icons.clear,
-                          size: 16,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ),
-                ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Container(
-            height: 140,
+            height: 200,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E), // Dark terminal-like background
+              color: Colors.grey.shade50,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: Colors.grey.shade100),
             ),
             child: _activityLog.isEmpty
                 ? Center(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.terminal,
-                          color: Colors.grey.shade600,
-                          size: 24,
+                          Icons.timeline_outlined,
+                          color: Colors.grey.shade400,
+                          size: 32,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Waiting for AI activity...',
+                          'No activity yet',
                           style: GoogleFonts.inter(
                             color: Colors.grey.shade500,
-                            fontSize: 13,
+                            fontSize: 12,
                           ),
                         ),
                       ],
@@ -1290,53 +1239,24 @@ class _AhamAICoderBottomSheetContentState extends State<AhamAICoderBottomSheetCo
                   )
                 : ListView.builder(
                     controller: _activityScrollController,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(8),
                     itemCount: _activityLog.length,
                     itemBuilder: (context, index) {
-                      final log = _activityLog[index];
-                      final isError = log.contains('❌');
-                      final isSuccess = log.contains('✅');
-                      final isProcessing = log.contains('⚡');
-                      
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Timestamp indicator
-                            Container(
-                              width: 4,
-                              height: 4,
-                              margin: const EdgeInsets.only(top: 6),
-                              decoration: BoxDecoration(
-                                color: isError 
-                                    ? Colors.red.shade400
-                                    : isSuccess 
-                                        ? Colors.green.shade400
-                                        : isProcessing
-                                            ? Colors.blue.shade400
-                                            : Colors.grey.shade400,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                log,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
-                                  color: isError 
-                                      ? Colors.red.shade300
-                                      : isSuccess 
-                                          ? Colors.green.shade300
-                                          : isProcessing
-                                              ? Colors.blue.shade300
-                                              : Colors.grey.shade300,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade100),
+                        ),
+                        child: Text(
+                          _activityLog[index],
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                            height: 1.3,
+                          ),
                         ),
                       );
                     },
