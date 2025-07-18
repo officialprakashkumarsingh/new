@@ -19,6 +19,8 @@ class GitHubService {
   final ValueNotifier<String> currentBranch = ValueNotifier('main');
   final ValueNotifier<List<AICodeEdit>> recentEdits = ValueNotifier([]);
   final ValueNotifier<String?> lastError = ValueNotifier(null);
+  final ValueNotifier<bool> isAIRunning = ValueNotifier(false);
+  final ValueNotifier<String> aiStatus = ValueNotifier('');
 
   // Headers for GitHub API requests
   Map<String, String> get _headers => {
@@ -135,51 +137,317 @@ class GitHubService {
     return null;
   }
 
-  // Find all files that contain any of the keywords from the prompt
+  // Advanced file search using multiple techniques like Cursor AI
   Future<List<GitHubFile>> _searchFilesForPrompt(String prompt) async {
-    final keywords = prompt
-        .toLowerCase()
-        .split(RegExp(r'\W+'))
-        .where((k) => k.length > 2)
-        .toSet();
-    if (keywords.isEmpty) return [];
-
     final files = await _collectAllFiles();
-    final scores = <MapEntry<GitHubFile, int>>[];
-    for (final file in files) {
-      final content = await getFileContent(file.path);
-      if (content == null) continue;
-      final lower = content.toLowerCase();
-      var count = 0;
-      for (final k in keywords) {
-        if (lower.contains(k)) count++;
+    if (files.isEmpty) return [];
+
+    // Extract multiple types of search terms
+    final keywords = _extractKeywords(prompt);
+    final fileExtensions = _extractFileExtensions(prompt);
+    final functionNames = _extractFunctionNames(prompt);
+    final classNames = _extractClassNames(prompt);
+
+    final scored = <MapEntry<GitHubFile, double>>[];
+    
+    // Process files in parallel for better performance
+    final futures = files.map((file) => _scoreFileRelevance(
+      file, keywords, fileExtensions, functionNames, classNames, prompt,
+    ));
+    
+    final scores = await Future.wait(futures);
+    
+    for (int i = 0; i < files.length; i++) {
+      if (scores[i] > 0) {
+        scored.add(MapEntry(files[i], scores[i]));
       }
-      if (count > 0) scores.add(MapEntry(file, count));
     }
-    scores.sort((a, b) => b.value.compareTo(a.value));
-    return scores.take(50).map((e) => e.key).toList();
+    
+    // Sort by relevance score (highest first)
+    scored.sort((a, b) => b.value.compareTo(a.value));
+    
+    // Return top 30 most relevant files
+    return scored.take(30).map((e) => e.key).toList();
   }
 
-  // Extract relevant context lines around the keywords in the file
-  String _extractRelevantContext(String content, String prompt) {
-    final keywords = prompt
+  Set<String> _extractKeywords(String prompt) {
+    return prompt
         .toLowerCase()
         .split(RegExp(r'\W+'))
         .where((k) => k.length > 2)
+        .where((k) => !_isStopWord(k))
         .toSet();
-    if (keywords.isEmpty) return '';
+  }
 
-    final lines = content.split('\n');
-    final matched = <String>[];
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i].toLowerCase();
-      if (keywords.any(line.contains)) {
-        final start = i - 5 < 0 ? 0 : i - 5;
-        final end = i + 5 >= lines.length ? lines.length - 1 : i + 5;
-        matched.addAll(lines.sublist(start, end + 1));
+  Set<String> _extractFileExtensions(String prompt) {
+    final extensions = <String>{};
+    final words = prompt.toLowerCase().split(' ');
+    
+    for (final word in words) {
+      if (word.contains('dart')) extensions.add('.dart');
+      if (word.contains('json')) extensions.add('.json');
+      if (word.contains('yaml') || word.contains('yml')) extensions.add('.yaml');
+      if (word.contains('md') || word.contains('markdown')) extensions.add('.md');
+      if (word.contains('pubspec')) extensions.add('pubspec.yaml');
+    }
+    
+    return extensions;
+  }
+
+  Set<String> _extractFunctionNames(String prompt) {
+    final functionPattern = RegExp(r'\b(\w+)\s*\(');
+    final matches = functionPattern.allMatches(prompt);
+    return matches.map((m) => m.group(1)!.toLowerCase()).toSet();
+  }
+
+  Set<String> _extractClassNames(String prompt) {
+    final classPattern = RegExp(r'\b[A-Z][a-zA-Z0-9]*\b');
+    final matches = classPattern.allMatches(prompt);
+    return matches.map((m) => m.group(0)!.toLowerCase()).toSet();
+  }
+
+  bool _isStopWord(String word) {
+    const stopWords = {
+      'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+      'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before',
+      'after', 'above', 'below', 'between', 'among', 'this', 'that', 'these',
+      'those', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have',
+      'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should',
+      'may', 'might', 'must', 'can', 'shall', 'add', 'create', 'make', 'fix',
+      'update', 'change', 'modify', 'improve', 'implement', 'function', 'method'
+    };
+    return stopWords.contains(word);
+  }
+
+  Future<double> _scoreFileRelevance(
+    GitHubFile file,
+    Set<String> keywords,
+    Set<String> fileExtensions,
+    Set<String> functionNames,
+    Set<String> classNames,
+    String originalPrompt,
+  ) async {
+    double score = 0.0;
+    
+    // File extension scoring
+    for (final ext in fileExtensions) {
+      if (file.path.endsWith(ext)) {
+        score += 10.0;
+        break;
       }
     }
-    return matched.join('\n');
+    
+    // File name scoring
+    final fileName = file.name.toLowerCase();
+    for (final keyword in keywords) {
+      if (fileName.contains(keyword)) {
+        score += 5.0;
+      }
+    }
+    
+    // Prioritize important files
+    if (file.path.contains('main.dart')) score += 8.0;
+    if (file.path.contains('pubspec.yaml')) score += 6.0;
+    if (file.path.contains('lib/')) score += 3.0;
+    if (file.path.contains('test/')) score += 2.0;
+    
+    // Content-based scoring (for code files only)
+    if (file.path.endsWith('.dart') || file.path.endsWith('.json') || file.path.endsWith('.yaml')) {
+      final content = await getFileContent(file.path);
+      if (content != null) {
+        final contentLower = content.toLowerCase();
+        
+        // Keyword frequency scoring
+        for (final keyword in keywords) {
+          final count = RegExp(r'\b' + RegExp.escape(keyword) + r'\b')
+              .allMatches(contentLower).length;
+          score += count * 2.0;
+        }
+        
+        // Function name scoring
+        for (final funcName in functionNames) {
+          if (contentLower.contains(funcName)) {
+            score += 8.0;
+          }
+        }
+        
+        // Class name scoring
+        for (final className in classNames) {
+          if (contentLower.contains(className)) {
+            score += 6.0;
+          }
+        }
+        
+        // Semantic scoring for common patterns
+        if (originalPrompt.toLowerCase().contains('error') && 
+            (contentLower.contains('try') || contentLower.contains('catch') || 
+             contentLower.contains('exception'))) {
+          score += 5.0;
+        }
+        
+        if (originalPrompt.toLowerCase().contains('ui') && 
+            (contentLower.contains('widget') || contentLower.contains('build') || 
+             contentLower.contains('scaffold'))) {
+          score += 5.0;
+        }
+      }
+    }
+    
+    return score;
+  }
+
+  // Advanced context extraction using multiple techniques like Cursor AI
+  String _extractRelevantContext(String content, String prompt) {
+    final keywords = _extractKeywords(prompt);
+    final functionNames = _extractFunctionNames(prompt);
+    final classNames = _extractClassNames(prompt);
+    
+    if (keywords.isEmpty && functionNames.isEmpty && classNames.isEmpty) {
+      // Return top of file as fallback
+      final lines = content.split('\n');
+      return lines.take(20).join('\n');
+    }
+
+    final lines = content.split('\n');
+    final relevantSections = <String>[];
+    final processedLines = <int>{};
+    
+    // Find class definitions
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (line.trim().startsWith('class ') || 
+          line.trim().startsWith('abstract class ') ||
+          line.trim().startsWith('mixin ')) {
+        final className = _extractClassName(line);
+        if (className != null && classNames.contains(className.toLowerCase())) {
+          _addContextSection(lines, i, relevantSections, processedLines, 'CLASS');
+        }
+      }
+    }
+    
+    // Find function/method definitions
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i];
+      if (_isFunctionDefinition(line)) {
+        final funcName = _extractFunctionName(line);
+        if (funcName != null && functionNames.contains(funcName.toLowerCase())) {
+          _addContextSection(lines, i, relevantSections, processedLines, 'FUNCTION');
+        }
+      }
+    }
+    
+    // Find keyword matches with smart context
+    for (var i = 0; i < lines.length; i++) {
+      if (processedLines.contains(i)) continue;
+      
+      final line = lines[i].toLowerCase();
+      final hasKeyword = keywords.any((k) => line.contains(k));
+      
+      if (hasKeyword) {
+        // Determine context size based on line type
+        int contextSize = 3;
+        if (line.contains('class ') || line.contains('function ') || line.contains('method ')) {
+          contextSize = 8;
+        } else if (line.contains('try') || line.contains('catch') || line.contains('error')) {
+          contextSize = 5;
+        }
+        
+        _addContextSection(lines, i, relevantSections, processedLines, 'KEYWORD', contextSize);
+      }
+    }
+    
+    // If no specific matches, extract imports and main structure
+    if (relevantSections.isEmpty) {
+      _addImportsAndStructure(lines, relevantSections);
+    }
+    
+    return relevantSections.join('\n\n--- CONTEXT SECTION ---\n\n');
+  }
+  
+  void _addContextSection(List<String> lines, int centerLine, List<String> sections, 
+                         Set<int> processedLines, String sectionType, [int contextSize = 5]) {
+    final start = (centerLine - contextSize).clamp(0, lines.length - 1);
+    final end = (centerLine + contextSize).clamp(0, lines.length - 1);
+    
+    // Extend to logical boundaries
+    int adjustedStart = start;
+    int adjustedEnd = end;
+    
+    // Extend backwards to find logical start (e.g., function beginning)
+    for (int i = start; i >= 0 && i >= centerLine - 15; i--) {
+      if (lines[i].trim().isEmpty || 
+          _isFunctionDefinition(lines[i]) || 
+          lines[i].trim().startsWith('class ') ||
+          lines[i].trim().startsWith('//') && lines[i].contains('TODO')) {
+        adjustedStart = i;
+        break;
+      }
+    }
+    
+    // Extend forward to find logical end
+    for (int i = end; i < lines.length && i <= centerLine + 15; i++) {
+      if (lines[i].trim().isEmpty || 
+          _isFunctionDefinition(lines[i]) ||
+          lines[i].trim().startsWith('class ')) {
+        adjustedEnd = i;
+        break;
+      }
+    }
+    
+    // Mark lines as processed
+    for (int i = adjustedStart; i <= adjustedEnd; i++) {
+      processedLines.add(i);
+    }
+    
+    final section = lines.sublist(adjustedStart, adjustedEnd + 1).join('\n');
+    sections.add('// $sectionType CONTEXT:\n$section');
+  }
+  
+  void _addImportsAndStructure(List<String> lines, List<String> sections) {
+    final imports = <String>[];
+    final structure = <String>[];
+    
+    for (int i = 0; i < lines.length && i < 50; i++) {
+      final line = lines[i];
+      if (line.trim().startsWith('import ') || 
+          line.trim().startsWith('part ') ||
+          line.trim().startsWith('library ')) {
+        imports.add(line);
+      } else if (line.trim().startsWith('class ') || 
+                 line.trim().startsWith('abstract class ') ||
+                 line.trim().startsWith('mixin ') ||
+                 _isFunctionDefinition(line)) {
+        structure.add(line);
+        if (structure.length >= 10) break;
+      }
+    }
+    
+    if (imports.isNotEmpty) {
+      sections.add('// IMPORTS:\n${imports.join('\n')}');
+    }
+    if (structure.isNotEmpty) {
+      sections.add('// STRUCTURE:\n${structure.join('\n')}');
+    }
+  }
+  
+  bool _isFunctionDefinition(String line) {
+    final trimmed = line.trim();
+    return trimmed.contains('(') && trimmed.contains(')') && 
+           (trimmed.contains('void ') || trimmed.contains('String ') || 
+            trimmed.contains('int ') || trimmed.contains('bool ') ||
+            trimmed.contains('double ') || trimmed.contains('Future<') ||
+            trimmed.contains('Widget ') || trimmed.contains('async ') ||
+            RegExp(r'\w+\s+\w+\s*\(').hasMatch(trimmed));
+  }
+  
+  String? _extractClassName(String line) {
+    final match = RegExp(r'class\s+(\w+)').firstMatch(line);
+    return match?.group(1);
+  }
+  
+  String? _extractFunctionName(String line) {
+    final match = RegExp(r'(\w+)\s*\(').firstMatch(line);
+    return match?.group(1);
   }
 
   // Update file content with AI assistance
@@ -236,18 +504,22 @@ class GitHubService {
   }) async {
     try {
       final context = _extractRelevantContext(content, prompt);
+      
+      // Add timeout and better error handling
       final response = await http.post(
         Uri.parse('https://api-aham-ai.officialprakashkrsingh.workers.dev/v1/chat/completions'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ahamaibyprakash25',
+          'User-Agent': 'AhamAI-Flutter-App/1.0',
+          'Accept': 'application/json',
         },
         body: json.encode({
           'model': model,
           'messages': [
             {
               'role': 'system',
-              'content': 'You are an expert code assistant. When given code and a modification request, return ONLY the modified code without any explanations, comments, or markdown formatting. Return the complete modified file content.'
+              'content': 'You are an expert code assistant. When given code and a modification request, return ONLY the modified code without any explanations, comments, or markdown formatting. Return the complete modified file content. If no changes are needed, return the original code exactly as provided.'
             },
             {
               'role': 'user',
@@ -255,18 +527,55 @@ class GitHubService {
             }
           ],
           'stream': false,
+          'max_tokens': 4000,
+          'temperature': 0.3,
         }),
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          throw Exception('Request timeout - AI service took too long to respond');
+        },
       );
+
+      debugPrint('AI API Response Status: ${response.statusCode}');
+      debugPrint('AI API Response Headers: ${response.headers}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return data['choices'][0]['message']['content'].trim();
+        if (data['choices'] != null && data['choices'].isNotEmpty) {
+          final content = data['choices'][0]['message']['content']?.trim();
+          if (content != null && content.isNotEmpty) {
+            return content;
+          } else {
+            lastError.value = 'AI returned empty response';
+            return null;
+          }
+        } else {
+          lastError.value = 'Invalid response format from AI service';
+          return null;
+        }
+      } else if (response.statusCode == 429) {
+        lastError.value = 'Rate limit exceeded. Please try again later.';
+      } else if (response.statusCode == 401) {
+        lastError.value = 'Authentication failed with AI service';
+      } else if (response.statusCode == 500) {
+        lastError.value = 'AI service internal error. Please try again.';
       } else {
-        lastError.value = 'Request failed: ${response.statusCode}';
+        final errorBody = response.body;
+        debugPrint('AI API Error Body: $errorBody');
+        lastError.value = 'Request failed (${response.statusCode}): ${errorBody.isNotEmpty ? errorBody : 'Unknown error'}';
       }
-    } catch (e) {
+    } on SocketException {
+      lastError.value = 'Network connection error. Please check your internet connection.';
+    } on FormatException catch (e) {
+      debugPrint('JSON Format error: $e');
+      lastError.value = 'Invalid response format from server';
+    } on Exception catch (e) {
       debugPrint('Error getting AI suggestions: $e');
-      lastError.value = 'Network error: $e';
+      lastError.value = 'Error: ${e.toString()}';
+    } catch (e) {
+      debugPrint('Unexpected error getting AI suggestions: $e');
+      lastError.value = 'Unexpected error: ${e.toString()}';
     }
     return null;
   }
@@ -430,28 +739,43 @@ class GitHubService {
     final repo = selectedRepository.value;
     if (repo == null) return false;
 
+    // Set running status
+    isAIRunning.value = true;
+    lastError.value = null;
+
     try {
-      onStatus?.call('Searching for relevant files...');
+      final statusUpdate = (String status) {
+        aiStatus.value = status;
+        onStatus?.call(status);
+      };
+
+      statusUpdate('Searching for relevant files...');
       var files = await _searchFilesForPrompt(prompt);
       if (files.isEmpty) {
         files = await _collectAllFiles();
       }
-      onStatus?.call('Processing ${files.length} files');
+      
+      statusUpdate('Processing ${files.length} files');
       bool anyChanges = false;
+      
       for (var i = 0; i < files.length; i++) {
         final file = files[i];
-        onStatus?.call('Processing ${file.path} (${i + 1}/${files.length})');
+        statusUpdate('Processing ${file.path} (${i + 1}/${files.length})');
+        
         final content = await getFileContent(file.path);
         if (content == null) continue;
+        
         final changed = await updateFileWithAI(
           filePath: file.path,
           currentContent: content,
           prompt: prompt,
           aiModel: aiModel,
         );
+        
         if (changed) {
           anyChanges = true;
           final latest = recentEdits.value.first;
+          statusUpdate('Committing changes to ${file.path}...');
           await commitChanges(
             filePath: file.path,
             content: latest.modifiedContent,
@@ -459,12 +783,19 @@ class GitHubService {
           );
         }
       }
-      onStatus?.call('');
+      
+      statusUpdate('');
+      aiStatus.value = '';
       return anyChanges;
     } catch (e) {
-      onStatus?.call('Failed: $e');
+      final errorMsg = 'Failed: $e';
+      aiStatus.value = errorMsg;
+      onStatus?.call(errorMsg);
       debugPrint('Error updating repository with AI: $e');
       return false;
+    } finally {
+      // Always reset running status
+      isAIRunning.value = false;
     }
   }
 }
