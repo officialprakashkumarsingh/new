@@ -350,4 +350,51 @@ class GitHubService {
     }
     return [];
   }
+
+  // Recursively collect all files in the current repository
+  Future<List<GitHubFile>> _collectAllFiles([String path = '']) async {
+    final contents = await getRepositoryContents(path);
+    final files = <GitHubFile>[];
+    for (final item in contents) {
+      if (item.type == 'file') {
+        files.add(item);
+      } else if (item.type == 'dir') {
+        files.addAll(await _collectAllFiles(item.path));
+      }
+    }
+    return files;
+  }
+
+  // Apply AI modifications across all repository files
+  Future<bool> updateRepositoryWithAI({
+    required String prompt,
+    required String aiModel,
+    void Function(String status)? onStatus,
+  }) async {
+    final repo = selectedRepository.value;
+    if (repo == null) return false;
+
+    try {
+      final files = await _collectAllFiles();
+      bool anyChanges = false;
+      for (final file in files) {
+        onStatus?.call('Processing ${file.path}');
+        final content = await getFileContent(file.path);
+        if (content == null) continue;
+        final changed = await updateFileWithAI(
+          filePath: file.path,
+          currentContent: content,
+          prompt: prompt,
+          aiModel: aiModel,
+        );
+        if (changed) anyChanges = true;
+      }
+      onStatus?.call('');
+      return anyChanges;
+    } catch (e) {
+      onStatus?.call('Failed: $e');
+      debugPrint('Error updating repository with AI: $e');
+      return false;
+    }
+  }
 }
