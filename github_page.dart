@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'github_service.dart';
 import 'github_models.dart';
 import 'code_editor_page.dart';
+import 'repo_ai_assistant_page.dart';
 
 class GitHubPage extends StatefulWidget {
   final String selectedModel;
@@ -529,6 +530,21 @@ class _FileBrowserWidgetState extends State<FileBrowserWidget> {
                   style: const TextStyle(fontSize: 12),
                 ),
                 backgroundColor: Colors.blue.shade50,
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'AI Repository Assistant',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RepoAIAssistantPage(
+                    selectedModel: widget.selectedModel,
+                  ),
+                ),
               );
             },
           ),
