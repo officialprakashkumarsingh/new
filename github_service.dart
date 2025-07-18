@@ -144,16 +144,19 @@ class GitHubService {
     if (keywords.isEmpty) return [];
 
     final files = await _collectAllFiles();
-    final matches = <GitHubFile>[];
+    final scores = <MapEntry<GitHubFile, int>>[];
     for (final file in files) {
       final content = await getFileContent(file.path);
       if (content == null) continue;
       final lower = content.toLowerCase();
-      if (keywords.any(lower.contains)) {
-        matches.add(file);
+      var count = 0;
+      for (final k in keywords) {
+        if (lower.contains(k)) count++;
       }
+      if (count > 0) scores.add(MapEntry(file, count));
     }
-    return matches;
+    scores.sort((a, b) => b.value.compareTo(a.value));
+    return scores.take(50).map((e) => e.key).toList();
   }
 
   // Extract relevant context lines around the keywords in the file
@@ -425,9 +428,11 @@ class GitHubService {
       if (files.isEmpty) {
         files = await _collectAllFiles();
       }
+      onStatus?.call('Processing ${files.length} files');
       bool anyChanges = false;
-      for (final file in files) {
-        onStatus?.call('Processing ${file.path}');
+      for (var i = 0; i < files.length; i++) {
+        final file = files[i];
+        onStatus?.call('Processing ${file.path} (${i + 1}/${files.length})');
         final content = await getFileContent(file.path);
         if (content == null) continue;
         final changed = await updateFileWithAI(
