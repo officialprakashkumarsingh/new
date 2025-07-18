@@ -52,8 +52,8 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black87,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
         title: const Text('AhamAI Coder'),
       ),
       body: Padding(

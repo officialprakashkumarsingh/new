@@ -179,11 +179,10 @@ Create `android/app/src/main/res/xml/network_security_config.xml`:
 - View repository details (stars, forks, description)
 
 #### AI-Powered Code Editing
-1. Select a repository and navigate to the "Files" tab
-2. Browse and open any code file
-3. Use the "AI Assistant" tab to describe changes
-4. AI will modify the code based on your instructions
-5. Review changes and commit directly
+1. Select a repository and open **AhamAI Coder** from the Repositories tab
+2. Enter a natural language prompt describing the changes you want
+3. AhamAI Coder searches your repo, edits relevant files, and commits automatically
+4. Review the resulting commits and code updates
 
 #### File Operations
 - Browse repository file structure
