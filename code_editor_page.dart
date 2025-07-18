@@ -173,7 +173,7 @@ class _CodeEditorPageState extends State<CodeEditorPage> with TickerProviderStat
             ),
             IconButton(
               icon: const Icon(Icons.save),
-              onPressed: () => _tabController.animateTo(2),
+              onPressed: () => _tabController.animateTo(1),
               tooltip: 'Commit changes',
             ),
           ],

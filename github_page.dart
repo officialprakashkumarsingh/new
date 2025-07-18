@@ -20,6 +20,7 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _tokenController = TextEditingController();
   bool _isLoading = false;
+  bool _showMinimizedCoderButton = false;
 
   @override
   void initState() {
@@ -69,20 +70,25 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
             return _buildAuthenticationView();
           }
 
-          return Column(
+          return Stack(
             children: [
-              _buildHeader(),
-              _buildTabBar(),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildRepositoriesTab(),
-                    _buildFileBrowserTab(),
-                    _buildPullRequestsTab(),
-                  ],
-                ),
+              Column(
+                children: [
+                  _buildHeader(),
+                  _buildTabBar(),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildRepositoriesTab(),
+                        _buildFileBrowserTab(),
+                        _buildPullRequestsTab(),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+              if (_showMinimizedCoderButton) _buildMinimizedCoderButton(),
             ],
           );
         },
@@ -424,6 +430,7 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
   }
 
   void _showAhamAICoderBottomSheet() {
+    setState(() => _showMinimizedCoderButton = false);
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -520,6 +527,10 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
                           },
                         ),
                         IconButton(
+                          icon: const Icon(Icons.minimize),
+                          onPressed: _minimizeAhamAICoderBottomSheet,
+                        ),
+                        IconButton(
                           icon: const Icon(Icons.close),
                           onPressed: () => Navigator.pop(context),
                         ),
@@ -537,6 +548,23 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _minimizeAhamAICoderBottomSheet() {
+    Navigator.pop(context);
+    setState(() => _showMinimizedCoderButton = true);
+  }
+
+  Widget _buildMinimizedCoderButton() {
+    return Positioned(
+      bottom: 20,
+      right: 20,
+      child: FloatingActionButton(
+        heroTag: 'coder_minimized',
+        onPressed: _showAhamAICoderBottomSheet,
+        child: const Icon(Icons.developer_mode),
       ),
     );
   }
