@@ -90,17 +90,18 @@ class _CodeEditorPageState extends State<CodeEditorPage> with TickerProviderStat
     setState(() => _isCommitting = true);
 
     try {
-      final success = await _gitHubService.commitChanges(
+      final newSha = await _gitHubService.commitChanges(
         filePath: widget.file.path,
         content: _contentController.text,
         commitMessage: _commitMessageController.text,
         sha: _fileSha,
       );
 
-      if (success) {
+      if (newSha != null) {
         setState(() {
           _originalContent = _contentController.text;
           _hasUnsavedChanges = false;
+          _fileSha = newSha;
         });
         _commitMessageController.clear();
         ScaffoldMessenger.of(context).showSnackBar(

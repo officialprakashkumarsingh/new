@@ -190,6 +190,58 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
     );
   }
 
+  void _showDiffDialog(AICodeEdit edit) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(edit.filePath, style: const TextStyle(fontSize: 14)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Original', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: SelectableText(
+                    edit.originalContent,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text('Modified', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: SelectableText(
+                    edit.modifiedContent,
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPromptSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -663,20 +715,28 @@ class _AhamAICoderPageState extends State<AhamAICoderPage> with TickerProviderSt
                               color: Colors.blue.shade100,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Text(
-                              edit.aiModel,
-                              style: GoogleFonts.inter(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue.shade700,
-                              ),
+                          child: Text(
+                            edit.aiModel,
+                            style: GoogleFonts.inter(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.blue.shade700,
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
+                        ),
+                        const SizedBox(width: 8),
+                        TextButton(
+                          onPressed: () => _showDiffDialog(edit),
+                          child: const Text(
+                            'View Diff',
+                            style: TextStyle(fontSize: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
               }).toList(),
             ),
         ],

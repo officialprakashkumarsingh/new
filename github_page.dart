@@ -20,12 +20,14 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
   late TabController _tabController;
   final TextEditingController _tokenController = TextEditingController();
   bool _isLoading = false;
-  bool _showMinimizedCoderButton = false;
+  bool _coderVisible = false;
+  bool _coderMinimized = false;
+  final GlobalKey _coderKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this); // Changed from 4 to 3
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -82,13 +84,21 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
                       children: [
                         _buildRepositoriesTab(),
                         _buildFileBrowserTab(),
+                        _buildCommitsTab(),
                         _buildPullRequestsTab(),
                       ],
                     ),
                   ),
                 ],
               ),
-              if (_showMinimizedCoderButton) _buildMinimizedCoderButton(),
+              if (_coderVisible)
+                Visibility(
+                  visible: !_coderMinimized,
+                  maintainState: true,
+                  child: _buildAhamAICoderSheet(),
+                ),
+              if (_coderVisible && _coderMinimized)
+                _buildMinimizedCoderButton(),
             ],
           );
         },
@@ -268,6 +278,7 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
         tabs: const [
           Tab(text: 'Repositories'),
           Tab(text: 'Files'),
+          Tab(text: 'Commits'),
           Tab(text: 'Pull Requests'),
         ],
       ),
@@ -430,12 +441,34 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
   }
 
   void _showAhamAICoderBottomSheet() {
-    setState(() => _showMinimizedCoderButton = false);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
+    setState(() {
+      _coderVisible = true;
+      _coderMinimized = false;
+    });
+  }
+
+  void _minimizeAhamAICoderBottomSheet() {
+    setState(() {
+      _coderMinimized = true;
+    });
+  }
+
+  Widget _buildMinimizedCoderButton() {
+    return Positioned(
+      bottom: 20,
+      right: 20,
+      child: FloatingActionButton(
+        heroTag: 'coder_minimized',
+        onPressed: () => setState(() => _coderMinimized = false),
+        child: const Icon(Icons.developer_mode),
+      ),
+    );
+  }
+
+  Widget _buildAhamAICoderSheet() {
+    return Positioned.fill(
+      child: DraggableScrollableSheet(
+        key: _coderKey,
         initialChildSize: 0.85,
         minChildSize: 0.5,
         maxChildSize: 0.95,
@@ -458,83 +491,70 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
                     topRight: Radius.circular(20),
                   ),
                   border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
+                    bottom: BorderSide(color: Colors.grey),
                   ),
                 ),
-                child: Column(
+                child: Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(2),
+                    Text(
+                      'AhamAI',
+                      style: GoogleFonts.pacifico(
+                        fontSize: 20,
+                        color: Colors.grey.shade800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Text(
-                          'AhamAI',
-                          style: GoogleFonts.pacifico(
-                            fontSize: 20,
-                            color: Colors.grey.shade800,
-                            fontWeight: FontWeight.w600,
+                    const SizedBox(width: 6),
+                    Text(
+                      'Coder',
+                      style: GoogleFonts.inter(
+                        fontSize: 20,
+                        color: Colors.blue.shade600,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    ValueListenableBuilder<GitHubRepository?>(
+                      valueListenable: _gitHubService.selectedRepository,
+                      builder: (context, repo, child) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: repo != null ? Colors.blue.shade50 : Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: repo != null ? Colors.blue.shade200 : Colors.grey.shade300,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Coder',
-                          style: GoogleFonts.inter(
-                            fontSize: 20,
-                            color: Colors.blue.shade600,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        ValueListenableBuilder<GitHubRepository?>(
-                          valueListenable: _gitHubService.selectedRepository,
-                          builder: (context, repo, child) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: repo != null ? Colors.blue.shade50 : Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: repo != null ? Colors.blue.shade200 : Colors.grey.shade300,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                repo != null ? Icons.folder_outlined : Icons.folder_off_outlined,
+                                size: 16,
+                                color: repo != null ? Colors.blue.shade700 : Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                repo?.name ?? 'No Repository',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: repo != null ? Colors.blue.shade700 : Colors.grey.shade500,
                                 ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    repo != null ? Icons.folder_outlined : Icons.folder_off_outlined,
-                                    size: 16,
-                                    color: repo != null ? Colors.blue.shade700 : Colors.grey.shade500,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    repo?.name ?? 'No Repository',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: repo != null ? Colors.blue.shade700 : Colors.grey.shade500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.minimize),
-                          onPressed: _minimizeAhamAICoderBottomSheet,
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.minimize),
+                      onPressed: _minimizeAhamAICoderBottomSheet,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => setState(() => _coderVisible = false),
                     ),
                   ],
                 ),
@@ -548,23 +568,6 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  void _minimizeAhamAICoderBottomSheet() {
-    Navigator.pop(context);
-    setState(() => _showMinimizedCoderButton = true);
-  }
-
-  Widget _buildMinimizedCoderButton() {
-    return Positioned(
-      bottom: 20,
-      right: 20,
-      child: FloatingActionButton(
-        heroTag: 'coder_minimized',
-        onPressed: _showAhamAICoderBottomSheet,
-        child: const Icon(Icons.developer_mode),
       ),
     );
   }

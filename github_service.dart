@@ -581,13 +581,13 @@ class GitHubService {
   }
 
   // Commit changes
-  Future<bool> commitChanges({
+  Future<String?> commitChanges({
     required String filePath,
     required String content,
     required String commitMessage,
     String? sha,
   }) async {
-    if (selectedRepository.value == null) return false;
+    if (selectedRepository.value == null) return null;
 
     try {
       final repo = selectedRepository.value!;
@@ -609,10 +609,14 @@ class GitHubService {
         body: json.encode(body),
       );
 
-      return response.statusCode == 200 || response.statusCode == 201;
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = json.decode(response.body);
+        return data['content']?['sha'];
+      }
+      return null;
     } catch (e) {
       debugPrint('Error committing changes: $e');
-      return false;
+      return null;
     }
   }
 
