@@ -24,6 +24,9 @@ AhamAI is a powerful Flutter Android app that combines AI chat capabilities with
 ### 🔧 **NEW: GitHub Integration**
 - **Repository Management**: Connect and browse your GitHub repositories
 - **AI-Powered Code Editing**: Let AI modify your code with natural language prompts
+- **AhamAI Coder**: Apply prompts across the entire repository
+- **Contextual AI Editing**: Searches files for relevant code before applying changes
+- **Ranked File Search**: Prioritizes files with the most keyword matches for more accurate AI edits
 - **File Browser**: Navigate through repository files and directories
 - **Direct Commits**: Commit changes directly from the app
 - **Pull Request Management**: View and manage pull requests

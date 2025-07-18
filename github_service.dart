@@ -18,6 +18,7 @@ class GitHubService {
   final ValueNotifier<GitHubRepository?> selectedRepository = ValueNotifier(null);
   final ValueNotifier<String> currentBranch = ValueNotifier('main');
   final ValueNotifier<List<AICodeEdit>> recentEdits = ValueNotifier([]);
+  final ValueNotifier<String?> lastError = ValueNotifier(null);
 
   // Headers for GitHub API requests
   Map<String, String> get _headers => {
@@ -134,6 +135,53 @@ class GitHubService {
     return null;
   }
 
+  // Find all files that contain any of the keywords from the prompt
+  Future<List<GitHubFile>> _searchFilesForPrompt(String prompt) async {
+    final keywords = prompt
+        .toLowerCase()
+        .split(RegExp(r'\W+'))
+        .where((k) => k.length > 2)
+        .toSet();
+    if (keywords.isEmpty) return [];
+
+    final files = await _collectAllFiles();
+    final scores = <MapEntry<GitHubFile, int>>[];
+    for (final file in files) {
+      final content = await getFileContent(file.path);
+      if (content == null) continue;
+      final lower = content.toLowerCase();
+      var count = 0;
+      for (final k in keywords) {
+        if (lower.contains(k)) count++;
+      }
+      if (count > 0) scores.add(MapEntry(file, count));
+    }
+    scores.sort((a, b) => b.value.compareTo(a.value));
+    return scores.take(50).map((e) => e.key).toList();
+  }
+
+  // Extract relevant context lines around the keywords in the file
+  String _extractRelevantContext(String content, String prompt) {
+    final keywords = prompt
+        .toLowerCase()
+        .split(RegExp(r'\W+'))
+        .where((k) => k.length > 2)
+        .toSet();
+    if (keywords.isEmpty) return '';
+
+    final lines = content.split('\n');
+    final matched = <String>[];
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i].toLowerCase();
+      if (keywords.any(line.contains)) {
+        final start = i - 5 < 0 ? 0 : i - 5;
+        final end = i + 5 >= lines.length ? lines.length - 1 : i + 5;
+        matched.addAll(lines.sublist(start, end + 1));
+      }
+    }
+    return matched.join('\n');
+  }
+
   // Update file content with AI assistance
   Future<bool> updateFileWithAI({
     required String filePath,
@@ -143,6 +191,7 @@ class GitHubService {
   }) async {
     try {
       // First, get AI suggestions for the code
+      lastError.value = null;
       final modifiedContent = await _getAISuggestions(
         content: currentContent,
         prompt: prompt,
@@ -150,6 +199,9 @@ class GitHubService {
       );
 
       if (modifiedContent == null || modifiedContent == currentContent) {
+        if (modifiedContent == null && lastError.value == null) {
+          lastError.value = 'No modifications returned.';
+        }
         return false;
       }
 
@@ -183,6 +235,7 @@ class GitHubService {
     required String model,
   }) async {
     try {
+      final context = _extractRelevantContext(content, prompt);
       final response = await http.post(
         Uri.parse('https://api-aham-ai.officialprakashkrsingh.workers.dev/v1/chat/completions'),
         headers: {
@@ -198,7 +251,7 @@ class GitHubService {
             },
             {
               'role': 'user',
-              'content': 'Modify this code according to the request:\n\nCURRENT CODE:\n$content\n\nREQUEST: $prompt\n\nReturn only the modified code:'
+              'content': 'Modify this code according to the request.\n\nRELEVANT CONTEXT:\n$context\n\nFULL FILE:\n$content\n\nREQUEST: $prompt\n\nReturn only the modified code:'
             }
           ],
           'stream': false,
@@ -208,9 +261,12 @@ class GitHubService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         return data['choices'][0]['message']['content'].trim();
+      } else {
+        lastError.value = 'Request failed: ${response.statusCode}';
       }
     } catch (e) {
       debugPrint('Error getting AI suggestions: $e');
+      lastError.value = 'Network error: $e';
     }
     return null;
   }
@@ -349,5 +405,66 @@ class GitHubService {
       debugPrint('Error fetching commits: $e');
     }
     return [];
+  }
+
+  // Recursively collect all files in the current repository
+  Future<List<GitHubFile>> _collectAllFiles([String path = '']) async {
+    final contents = await getRepositoryContents(path);
+    final files = <GitHubFile>[];
+    for (final item in contents) {
+      if (item.type == 'file') {
+        files.add(item);
+      } else if (item.type == 'dir') {
+        files.addAll(await _collectAllFiles(item.path));
+      }
+    }
+    return files;
+  }
+
+  // Apply AI modifications across all repository files
+  Future<bool> updateRepositoryWithAI({
+    required String prompt,
+    required String aiModel,
+    void Function(String status)? onStatus,
+  }) async {
+    final repo = selectedRepository.value;
+    if (repo == null) return false;
+
+    try {
+      onStatus?.call('Searching for relevant files...');
+      var files = await _searchFilesForPrompt(prompt);
+      if (files.isEmpty) {
+        files = await _collectAllFiles();
+      }
+      onStatus?.call('Processing ${files.length} files');
+      bool anyChanges = false;
+      for (var i = 0; i < files.length; i++) {
+        final file = files[i];
+        onStatus?.call('Processing ${file.path} (${i + 1}/${files.length})');
+        final content = await getFileContent(file.path);
+        if (content == null) continue;
+        final changed = await updateFileWithAI(
+          filePath: file.path,
+          currentContent: content,
+          prompt: prompt,
+          aiModel: aiModel,
+        );
+        if (changed) {
+          anyChanges = true;
+          final latest = recentEdits.value.first;
+          await commitChanges(
+            filePath: file.path,
+            content: latest.modifiedContent,
+            commitMessage: 'AI: $prompt',
+          );
+        }
+      }
+      onStatus?.call('');
+      return anyChanges;
+    } catch (e) {
+      onStatus?.call('Failed: $e');
+      debugPrint('Error updating repository with AI: $e');
+      return false;
+    }
   }
 }

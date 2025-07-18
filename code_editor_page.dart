@@ -110,8 +110,9 @@ class _CodeEditorPageState extends State<CodeEditorPage> with TickerProviderStat
           );
         }
       } else {
+        final err = _gitHubService.lastError.value;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No changes suggested by AI')),
+          SnackBar(content: Text(err ?? 'AI did not generate changes. Try refining your prompt.')),
         );
       }
     } catch (e) {
@@ -277,6 +278,8 @@ class _CodeEditorPageState extends State<CodeEditorPage> with TickerProviderStat
   }
 
   Widget _buildFileInfoBar() {
+    final repo = GitHubService().selectedRepository.value;
+    final branch = GitHubService().currentBranch.value;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -294,6 +297,16 @@ class _CodeEditorPageState extends State<CodeEditorPage> with TickerProviderStat
               fontSize: 12,
             ),
           ),
+          const SizedBox(width: 16),
+          if (repo != null)
+            Text(
+              '${repo.name}/$branch',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 12,
+                fontFamily: 'monospace',
+              ),
+            ),
           const Spacer(),
           if (_hasUnsavedChanges)
             Container(
