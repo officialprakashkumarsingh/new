@@ -134,6 +134,50 @@ class GitHubService {
     return null;
   }
 
+  // Find all files that contain any of the keywords from the prompt
+  Future<List<GitHubFile>> _searchFilesForPrompt(String prompt) async {
+    final keywords = prompt
+        .toLowerCase()
+        .split(RegExp(r'\W+'))
+        .where((k) => k.length > 2)
+        .toSet();
+    if (keywords.isEmpty) return [];
+
+    final files = await _collectAllFiles();
+    final matches = <GitHubFile>[];
+    for (final file in files) {
+      final content = await getFileContent(file.path);
+      if (content == null) continue;
+      final lower = content.toLowerCase();
+      if (keywords.any(lower.contains)) {
+        matches.add(file);
+      }
+    }
+    return matches;
+  }
+
+  // Extract relevant context lines around the keywords in the file
+  String _extractRelevantContext(String content, String prompt) {
+    final keywords = prompt
+        .toLowerCase()
+        .split(RegExp(r'\W+'))
+        .where((k) => k.length > 2)
+        .toSet();
+    if (keywords.isEmpty) return '';
+
+    final lines = content.split('\n');
+    final matched = <String>[];
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i].toLowerCase();
+      if (keywords.any(line.contains)) {
+        final start = i - 5 < 0 ? 0 : i - 5;
+        final end = i + 5 >= lines.length ? lines.length - 1 : i + 5;
+        matched.addAll(lines.sublist(start, end + 1));
+      }
+    }
+    return matched.join('\n');
+  }
+
   // Update file content with AI assistance
   Future<bool> updateFileWithAI({
     required String filePath,
@@ -183,6 +227,7 @@ class GitHubService {
     required String model,
   }) async {
     try {
+      final context = _extractRelevantContext(content, prompt);
       final response = await http.post(
         Uri.parse('https://api-aham-ai.officialprakashkrsingh.workers.dev/v1/chat/completions'),
         headers: {
@@ -198,7 +243,7 @@ class GitHubService {
             },
             {
               'role': 'user',
-              'content': 'Modify this code according to the request:\n\nCURRENT CODE:\n$content\n\nREQUEST: $prompt\n\nReturn only the modified code:'
+              'content': 'Modify this code according to the request.\n\nRELEVANT CONTEXT:\n$context\n\nFULL FILE:\n$content\n\nREQUEST: $prompt\n\nReturn only the modified code:'
             }
           ],
           'stream': false,
@@ -349,5 +394,56 @@ class GitHubService {
       debugPrint('Error fetching commits: $e');
     }
     return [];
+  }
+
+  // Recursively collect all files in the current repository
+  Future<List<GitHubFile>> _collectAllFiles([String path = '']) async {
+    final contents = await getRepositoryContents(path);
+    final files = <GitHubFile>[];
+    for (final item in contents) {
+      if (item.type == 'file') {
+        files.add(item);
+      } else if (item.type == 'dir') {
+        files.addAll(await _collectAllFiles(item.path));
+      }
+    }
+    return files;
+  }
+
+  // Apply AI modifications across all repository files
+  Future<bool> updateRepositoryWithAI({
+    required String prompt,
+    required String aiModel,
+    void Function(String status)? onStatus,
+  }) async {
+    final repo = selectedRepository.value;
+    if (repo == null) return false;
+
+    try {
+      onStatus?.call('Searching for relevant files...');
+      var files = await _searchFilesForPrompt(prompt);
+      if (files.isEmpty) {
+        files = await _collectAllFiles();
+      }
+      bool anyChanges = false;
+      for (final file in files) {
+        onStatus?.call('Processing ${file.path}');
+        final content = await getFileContent(file.path);
+        if (content == null) continue;
+        final changed = await updateFileWithAI(
+          filePath: file.path,
+          currentContent: content,
+          prompt: prompt,
+          aiModel: aiModel,
+        );
+        if (changed) anyChanges = true;
+      }
+      onStatus?.call('');
+      return anyChanges;
+    } catch (e) {
+      onStatus?.call('Failed: $e');
+      debugPrint('Error updating repository with AI: $e');
+      return false;
+    }
   }
 }

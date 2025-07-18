@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'github_service.dart';
 import 'github_models.dart';
 import 'code_editor_page.dart';
+import 'repo_ai_assistant_page.dart';
 
 class GitHubPage extends StatefulWidget {
   final String selectedModel;
@@ -294,9 +295,13 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
   }
 
   Widget _buildRepositoryCard(GitHubRepository repo) {
+    final isSelected = _gitHubService.selectedRepository.value?.id == repo.id;
     return Card(
+      color: isSelected ? Colors.grey.shade50 : Colors.white,
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
+        selected: isSelected,
+        selectedTileColor: Colors.grey.shade100,
         leading: Icon(
           repo.isPrivate ? Icons.lock : Icons.folder_outlined,
           color: repo.isPrivate ? Colors.orange : Colors.blue,
@@ -337,10 +342,10 @@ class _GitHubPageState extends State<GitHubPage> with TickerProviderStateMixin {
         trailing: ValueListenableBuilder<GitHubRepository?>(
           valueListenable: _gitHubService.selectedRepository,
           builder: (context, selectedRepo, child) {
-            final isSelected = selectedRepo?.id == repo.id;
+            final selected = selectedRepo?.id == repo.id;
             return Icon(
-              isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isSelected ? Colors.green : Colors.grey.shade400,
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: selected ? Colors.green : Colors.grey.shade400,
             );
           },
         ),
@@ -501,12 +506,19 @@ class _FileBrowserWidgetState extends State<FileBrowserWidget> {
             const SizedBox(width: 8),
           ],
           Expanded(
-            child: Text(
-              _currentPath.isEmpty ? '/' : '/$_currentPath',
-              style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 14,
-              ),
+            child: ValueListenableBuilder<GitHubRepository?>(
+              valueListenable: _gitHubService.selectedRepository,
+              builder: (context, repo, child) {
+                final path = _currentPath.isEmpty ? '/' : '/$_currentPath';
+                final prefix = repo != null ? '${repo.name} ' : '';
+                return Text(
+                  '$prefix$path',
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 14,
+                  ),
+                );
+              },
             ),
           ),
           ValueListenableBuilder<String>(
@@ -518,6 +530,21 @@ class _FileBrowserWidgetState extends State<FileBrowserWidget> {
                   style: const TextStyle(fontSize: 12),
                 ),
                 backgroundColor: Colors.blue.shade50,
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'AI Repository Assistant',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => RepoAIAssistantPage(
+                    selectedModel: widget.selectedModel,
+                  ),
+                ),
               );
             },
           ),
@@ -538,6 +565,7 @@ class _FileBrowserWidgetState extends State<FileBrowserWidget> {
       itemBuilder: (context, index) {
         final file = _currentFiles[index];
         return ListTile(
+          tileColor: Colors.white,
           leading: Icon(
             file.type == 'dir' ? Icons.folder : Icons.description,
             color: file.type == 'dir' ? Colors.blue : Colors.grey.shade600,
@@ -546,12 +574,8 @@ class _FileBrowserWidgetState extends State<FileBrowserWidget> {
           subtitle: file.type == 'file'
               ? Text('${(file.size / 1024).toStringAsFixed(1)} KB')
               : null,
-          trailing: file.type == 'file'
-              ? IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () => _openFileEditor(file),
-                )
-              : const Icon(Icons.chevron_right),
+          trailing:
+              file.type == 'dir' ? const Icon(Icons.chevron_right) : null,
           onTap: () {
             if (file.type == 'dir') {
               _navigateToPath(file.path, file.name);
